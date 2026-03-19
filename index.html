@@ -94,8 +94,14 @@ textarea{resize:vertical;min-height:60px;}
 }
 .blq-card:hover{border-color:var(--naranja);}
 .blq-card.sel{border-color:var(--azul);background:var(--azul);color:white;}
+.blq-card.blq-vencido{border-color:#e08070;background:#fff5f4;}
+.blq-card.blq-vencido .blq-pts{color:#c0392b;}
+.blq-card.blq-vencido .blq-fecha{color:#c0392b;}
+.blq-card.sel.blq-vencido{background:#c0392b;border-color:#c0392b;color:white;}
 .blq-pts{font-size:.66em;font-weight:500;display:block;margin-top:1px;opacity:.8;}
 .blq-fecha{font-size:.6em;display:block;margin-top:1px;opacity:.7;}
+.blq-vencido-tag{font-size:.58em;display:block;margin-top:2px;color:#c0392b;font-weight:800;}
+.blq-card.sel .blq-vencido-tag{color:rgba(255,255,255,.85);}
 .cursos-tabla{width:100%;border-collapse:collapse;margin-bottom:4px;}
 .cursos-tabla th{background:var(--azul);color:white;padding:9px 10px;font-size:.76em;font-weight:700;text-align:left;}
 .cursos-tabla td{padding:7px 10px;border-bottom:1px solid #e8eef2;font-size:.82em;vertical-align:middle;}
@@ -268,32 +274,27 @@ textarea{resize:vertical;min-height:60px;}
   <div class="tipo-card" id="tc_amarilla" onclick="selTipo('amarilla')">
     <div class="tc-icon">🟡</div>
     <div class="tc-title">Alerta Amarilla</div>
-    <div class="tc-desc">El estudiante ya inició el curso pero su punteo está por debajo de la meta del bloque. Requiere atención pronta para recuperar el ritmo.</div>
+    <div class="tc-desc">El estudiante avanza pero su punteo está por debajo de la meta del bloque. Requiere atención pronta para recuperar el ritmo.</div>
   </div>
   <div class="tipo-card" id="tc_naranja" onclick="selTipo('naranja')">
     <div class="tc-icon">🟠</div>
     <div class="tc-title">Alerta Naranja</div>
-    <div class="tc-desc">El estudiante tiene 0 puntos en uno o más cursos. Corre riesgo de acumular lecciones pendientes y saturarse de trabajo.</div>
+    <div class="tc-desc">El estudiante tiene punteo en 0 en uno o más cursos. No ha ingresado a la plataforma y corre riesgo de saturarse de trabajo.</div>
   </div>
   <div class="tipo-card" id="tc_roja" onclick="selTipo('roja')">
     <div class="tc-icon">🔴</div>
     <div class="tc-title">Alerta Roja</div>
-    <div class="tc-desc">El estudiante está en riesgo de no completar el ciclo escolar. La acumulación es crítica y requiere acción inmediata.</div>
+    <div class="tc-desc">Rezago crítico. El estudiante está en riesgo de no completar el ciclo escolar y requiere acción inmediata.</div>
   </div>
 </div>
 
 <div class="form-card" id="formCard">
 
-  <div class="sec">Bloque actual</div>
+  <div class="sec">Bloque de referencia</div>
   <div style="margin-bottom:14px;">
-    <label>Selecciona el bloque en que se emite la alerta</label>
-    <div class="blq-row" id="bloqueRow">
-      <div class="blq-card" data-blq="1" data-pts="16"  data-fecha="28 de febrero de 2026" onclick="selBloque(this)">Bloque 1<span class="blq-pts">Meta: 16 pts.</span><span class="blq-fecha">Cierre: 28/feb</span></div>
-      <div class="blq-card" data-blq="2" data-pts="40"  data-fecha="30 de abril de 2026"   onclick="selBloque(this)">Bloque 2<span class="blq-pts">Meta: 40 pts.</span><span class="blq-fecha">Cierre: 30/abr</span></div>
-      <div class="blq-card" data-blq="3" data-pts="64"  data-fecha="30 de junio de 2026"   onclick="selBloque(this)">Bloque 3<span class="blq-pts">Meta: 64 pts.</span><span class="blq-fecha">Cierre: 30/jun</span></div>
-      <div class="blq-card" data-blq="4" data-pts="90"  data-fecha="31 de agosto de 2026"  onclick="selBloque(this)">Bloque 4<span class="blq-pts">Meta: 90 pts.</span><span class="blq-fecha">Cierre: 31/ago</span></div>
-      <div class="blq-card" data-blq="5" data-pts="100" data-fecha="7 de octubre de 2026"  onclick="selBloque(this)">Bloque 5<span class="blq-pts">Meta: 100 pts.</span><span class="blq-fecha">Cierre: 7/oct</span></div>
-    </div>
+    <label>Selecciona el bloque al que corresponde la alerta</label>
+    <div class="blq-row" id="bloqueRow"></div>
+    <div id="bloque-aviso-vencido" style="display:none;margin-top:10px;padding:9px 13px;background:#fff5f4;border:1.5px solid #e08070;border-left:4px solid #c0392b;border-radius:8px;font-size:.77em;color:#8b2218;font-weight:600;"></div>
   </div>
 
   <div class="sec">Datos del Estudiante</div>
@@ -312,7 +313,7 @@ textarea{resize:vertical;min-height:60px;}
   </div>
 
   <div class="sec">Cursos con Alerta</div>
-  <p style="font-size:.77em;color:#666;margin-bottom:10px;">Agrega todos los cursos que presentan problemas. Puedes agregar hasta 8 cursos.</p>
+  <p style="font-size:.77em;color:#666;margin-bottom:10px;">Agrega todos los cursos que presentan problemas. Puedes agregar hasta 10 cursos.</p>
 
   <table class="cursos-tabla" id="cursosTabla">
     <thead>
@@ -387,51 +388,94 @@ const ACCIONES = [
   'Recordar que en semanas de exámenes (marzo y junio) los módulos estarán cerrados.',
 ];
 
-let tipoSel='', bloqueSel=null, bloquePts=0, bloqueFecha='';
+const BLOQUES = [
+  {num:1, pts:16,  fechaStr:'28 de febrero de 2026',  fechaISO:'2026-02-28'},
+  {num:2, pts:40,  fechaStr:'30 de abril de 2026',    fechaISO:'2026-04-30'},
+  {num:3, pts:64,  fechaStr:'30 de junio de 2026',    fechaISO:'2026-06-30'},
+  {num:4, pts:90,  fechaStr:'31 de agosto de 2026',   fechaISO:'2026-08-31'},
+  {num:5, pts:100, fechaStr:'7 de octubre de 2026',   fechaISO:'2026-10-07'},
+];
+
+let tipoSel='', bloqueSel=null, bloquePts=0, bloqueFecha='', bloqueVencido=false;
 let filasCount=0;
+
+(function construirBloques(){
+  const hoy = new Date();
+  hoy.setHours(0,0,0,0);
+  const row = document.getElementById('bloqueRow');
+  BLOQUES.forEach(b=>{
+    const cierre = new Date(b.fechaISO+'T00:00:00');
+    const vencido = hoy > cierre;
+    const div = document.createElement('div');
+    div.className = 'blq-card' + (vencido?' blq-vencido':'');
+    div.dataset.blq     = b.num;
+    div.dataset.pts     = b.pts;
+    div.dataset.fecha   = b.fechaStr;
+    div.dataset.vencido = vencido ? '1' : '0';
+    div.innerHTML = `Bloque ${b.num}<span class="blq-pts">Meta: ${b.pts} pts.</span><span class="blq-fecha">Cierre: ${b.fechaISO.slice(5).replace('-','/')}</span>${vencido?'<span class="blq-vencido-tag">⚠ Vencido</span>':''}`;
+    div.addEventListener('click', ()=>selBloque(div));
+    row.appendChild(div);
+  });
+})();
 
 const TIPO_CFG = {
   amarilla:{
     label:'🟡 ALERTA AMARILLA',
     badgeClass:'badge-amarilla',
-    titulo:'Alerta Amarilla – Avance Por Debajo de la Meta',
     icon:'📉',
     bannerIcono:'🟡',
     tagClass:'tag-amarilla',
     barClass:'amarilla',
-    getBannerTitulo:(n)=>`Punteo por debajo de la meta en ${n>1?n+' cursos':'1 curso'}`,
-    getBannerDesc:(bloquePts,bloqueSel,bloqueFecha)=>
-      `El estudiante ya inició los cursos indicados pero su punteo no ha alcanzado los <strong>${bloquePts} puntos</strong> requeridos para el Bloque ${bloqueSel} (cierre: <strong>${bloqueFecha}</strong>). Es necesario retomar el ritmo de estudio cuanto antes para no acumular más rezago.`,
-    getAvisoBloque:(bloqueSel,bloqueFecha)=>
-      `📌 <strong>El tiempo es importante:</strong> Aunque el estudiante ya ha avanzado, la diferencia respecto a la meta puede crecer si no se estudia con constancia. El Bloque ${bloqueSel} finaliza el <strong>${bloqueFecha}</strong>. Ponerse al corriente ahora evita mayores dificultades más adelante.`,
+    getTitulo:(v)=> v
+      ? 'Alerta Amarilla – Bloque Vencido Sin Alcanzar la Meta'
+      : 'Alerta Amarilla – Avance Por Debajo de la Meta',
+    getBannerTitulo:(n,v)=>
+      `Punteo por debajo de la meta en ${n>1?n+' cursos':'1 curso'}`,
+    getBannerDesc:(bloquePts,bloqueSel,bloqueFecha,v)=> v
+      ? `El estudiante no alcanzó los <strong>${bloquePts} puntos</strong> requeridos en los cursos indicados. El <strong>Bloque ${bloqueSel} ya venció el ${bloqueFecha}</strong> y el punteo pendiente se acumula al trabajo del bloque en curso. Es necesario retomar el ritmo de estudio cuanto antes.`
+      : `El estudiante ya inició los cursos indicados pero su punteo no ha alcanzado los <strong>${bloquePts} puntos</strong> requeridos para el Bloque ${bloqueSel} (cierre: <strong>${bloqueFecha}</strong>). Es necesario retomar el ritmo de estudio cuanto antes para no acumular más rezago.`,
+    getAvisoBloque:(bloqueSel,bloqueFecha,v)=> v
+      ? `📌 <strong>El tiempo es importante:</strong> El <strong>Bloque ${bloqueSel} ya venció el ${bloqueFecha}</strong> sin que el estudiante alcanzara la meta de punteo. El rezago acumulado se suma al trabajo del bloque en curso. Ponerse al corriente ahora evita mayores dificultades más adelante.`
+      : `📌 <strong>El tiempo es importante:</strong> Aunque el estudiante ya ha avanzado, la diferencia respecto a la meta puede crecer si no se estudia con constancia. El Bloque ${bloqueSel} finaliza el <strong>${bloqueFecha}</strong>. Ponerse al corriente ahora evita mayores dificultades más adelante.`,
   },
   naranja:{
     label:'🟠 ALERTA NARANJA',
     badgeClass:'badge-naranja',
-    titulo:'Alerta Naranja – Punteo en Cero, Riesgo de Saturación',
     icon:'⚠️',
     bannerIcono:'🟠',
     tagClass:'tag-naranja',
     barClass:'naranja',
-    getBannerTitulo:(n)=>`Punteo en 0 en ${n>1?n+' cursos':'1 curso'}`,
-    getBannerDesc:(bloquePts,bloqueSel,bloqueFecha)=>
-      `El estudiante presenta <strong>0 puntos</strong> en los cursos indicados. Si no inicia actividad pronto, las lecciones se acumularán y el trabajo se volverá cada vez más difícil de recuperar. El Bloque ${bloqueSel} cierra el <strong>${bloqueFecha}</strong>.`,
-    getAvisoBloque:(bloqueSel,bloqueFecha)=>
-      `⚠️ <strong>Cuidado con la acumulación:</strong> Cada día sin ingresar suma más lecciones pendientes. Cuanto más tiempo pase sin actividad, más saturado quedará el estudiante. El Bloque ${bloqueSel} finaliza el <strong>${bloqueFecha}</strong>. Iniciar hoy reduce significativamente la carga.`,
+    getTitulo:(v)=> v
+      ? 'Alerta Naranja – Bloque Vencido Sin Alcanzar el Punteo'
+      : 'Alerta Naranja – Punteo en Cero, Sin Ingresar',
+    getBannerTitulo:(n,v)=>
+      `Punteo en 0 en ${n>1?n+' cursos':'1 curso'}`,
+    getBannerDesc:(bloquePts,bloqueSel,bloqueFecha,v)=> v
+      ? `El estudiante presenta <strong>0 puntos</strong> en los cursos indicados. El <strong>Bloque ${bloqueSel} ya venció el ${bloqueFecha}</strong> y las lecciones no completadas se acumulan al bloque en curso, haciendo cada vez más difícil recuperar el rezago.`
+      : `El estudiante presenta <strong>0 puntos</strong> en los cursos indicados. Si no inicia actividad pronto, las lecciones se acumularán y el trabajo se volverá cada vez más difícil de recuperar. El Bloque ${bloqueSel} cierra el <strong>${bloqueFecha}</strong>.`,
+    getAvisoBloque:(bloqueSel,bloqueFecha,v)=> v
+      ? `⚠️ <strong>Cuidado con la acumulación:</strong> Cada día sin ingresar suma más lecciones pendientes. El <strong>Bloque ${bloqueSel} ya venció el ${bloqueFecha}</strong> y el rezago acumulado se suma al trabajo del bloque en curso. Cuanto más tiempo pase sin actividad, más saturado quedará el estudiante.`
+      : `⚠️ <strong>Cuidado con la acumulación:</strong> Cada día sin ingresar suma más lecciones pendientes. Cuanto más tiempo pase sin actividad, más saturado quedará el estudiante. El Bloque ${bloqueSel} finaliza el <strong>${bloqueFecha}</strong>. Iniciar hoy reduce significativamente la carga.`,
   },
   roja:{
     label:'🔴 ALERTA ROJA',
     badgeClass:'badge-roja',
-    titulo:'Alerta Roja – Riesgo de No Completar el Ciclo Escolar',
     icon:'🚫',
     bannerIcono:'🔴',
     tagClass:'tag-roja',
     barClass:'roja',
-    getBannerTitulo:(n)=>`Riesgo crítico en ${n>1?n+' cursos':'1 curso'}`,
-    getBannerDesc:(bloquePts,bloqueSel,bloqueFecha)=>
-      `El estudiante presenta una <strong>acumulación crítica de lecciones pendientes</strong> que pone en riesgo su continuidad en el ciclo escolar. La fecha de cierre del Bloque ${bloqueSel} es el <strong>${bloqueFecha}</strong>. Sin acción inmediata y sostenida, no será posible completar los requisitos del año.`,
-    getAvisoBloque:(bloqueSel,bloqueFecha)=>
-      `🚨 <strong>Situación crítica:</strong> La acumulación de rezago ha llegado a un nivel que compromete la aprobación del ciclo escolar. Se requiere un plan de recuperación urgente coordinado con la Coordinación Académica. El Bloque ${bloqueSel} finaliza el <strong>${bloqueFecha}</strong>. Cada día sin acción reduce las posibilidades de recuperación.`,
+    getTitulo:(v)=> v
+      ? 'Alerta Roja – Rezago Crítico en Bloque Vencido'
+      : 'Alerta Roja – Riesgo de No Completar el Ciclo Escolar',
+    getBannerTitulo:(n,v)=> v
+      ? `Rezago crítico acumulado en ${n>1?n+' cursos':'1 curso'}`
+      : `Riesgo crítico en ${n>1?n+' cursos':'1 curso'}`,
+    getBannerDesc:(bloquePts,bloqueSel,bloqueFecha,v)=> v
+      ? `El estudiante presenta una <strong>acumulación crítica</strong> de lecciones y punteo sin completar. El <strong>Bloque ${bloqueSel} ya venció el ${bloqueFecha}</strong> y este rezago se suma al trabajo del bloque en curso, poniendo en riesgo serio la aprobación del ciclo escolar.`
+      : `El estudiante presenta una <strong>acumulación crítica de lecciones pendientes</strong> que pone en riesgo su continuidad en el ciclo escolar. La fecha de cierre del Bloque ${bloqueSel} es el <strong>${bloqueFecha}</strong>. Sin acción inmediata y sostenida, no será posible completar los requisitos del año.`,
+    getAvisoBloque:(bloqueSel,bloqueFecha,v)=> v
+      ? `🚨 <strong>Situación crítica:</strong> El <strong>Bloque ${bloqueSel} ya venció el ${bloqueFecha}</strong> con un nivel de rezago que compromete seriamente la aprobación del ciclo escolar. El rezago acumulado se suma al trabajo del bloque en curso. Se requiere un plan de recuperación urgente coordinado con la Coordinación Académica.`
+      : `🚨 <strong>Situación crítica:</strong> La acumulación de rezago ha llegado a un nivel que compromete la aprobación del ciclo escolar. Se requiere un plan de recuperación urgente coordinado con la Coordinación Académica. El Bloque ${bloqueSel} finaliza el <strong>${bloqueFecha}</strong>. Cada día sin acción reduce las posibilidades de recuperación.`,
   }
 };
 
@@ -466,15 +510,24 @@ function selTipo(t){
 function selBloque(el){
   document.querySelectorAll('.blq-card').forEach(e=>e.classList.remove('sel'));
   el.classList.add('sel');
-  bloqueSel  =parseInt(el.dataset.blq);
-  bloquePts  =parseInt(el.dataset.pts);
-  bloqueFecha=el.dataset.fecha;
+  bloqueSel     = parseInt(el.dataset.blq);
+  bloquePts     = parseInt(el.dataset.pts);
+  bloqueFecha   = el.dataset.fecha;
+  bloqueVencido = el.dataset.vencido === '1';
+
+  const aviso = document.getElementById('bloque-aviso-vencido');
+  if(bloqueVencido){
+    aviso.style.display='block';
+    aviso.innerHTML=`⚠️ <strong>Este bloque venció el ${bloqueFecha}.</strong> La alerta se generará indicando que corresponde a un bloque vencido y que el rezago se acumula al ciclo actual.`;
+  } else {
+    aviso.style.display='none';
+  }
   document.querySelectorAll('.pts-input').forEach(inp=>actualizarBarra(inp));
 }
 
 function agregarCurso(){
   const tbody=document.getElementById('cursosBody');
-  if(tbody.children.length>=8){document.getElementById('btnAgregar').style.display='none';return;}
+  if(tbody.children.length>=10){document.getElementById('btnAgregar').style.display='none';return;}
   const id='fila_'+filasCount++;
   const tr=document.createElement('tr');
   tr.id=id;
@@ -590,6 +643,19 @@ function generarAlerta(){
   ).map(c=>ACCIONES[parseInt(c.value)]);
 
   const cfg=TIPO_CFG[tipoSel];
+  const v=bloqueVencido;
+
+  const bloqueEstado = v
+    ? `⚠️ Bloque ${bloqueSel} vencido — fecha: ${bloqueFecha}`
+    : `⏰ Cierre del Bloque ${bloqueSel}: ${bloqueFecha}`;
+
+  const subtipoDoc = v
+    ? `Bloque ${bloqueSel} · Vencido el ${bloqueFecha} · Rezago acumulado`
+    : `Bloque ${bloqueSel} · Cierre: ${bloqueFecha}`;
+
+  const tablaTitulo = v
+    ? `Cursos con Alerta — Bloque ${bloqueSel} (Vencido · Meta: ${bloquePts} pts.)`
+    : `Cursos con Alerta — Bloque ${bloqueSel} (Meta: ${bloquePts} pts.)`;
 
   const filasTablaHTML=cursos.map(c=>{
     const pct=c.noIngreso?0:Math.min(Math.round((c.pts/bloquePts)*100),100);
@@ -609,9 +675,6 @@ function generarAlerta(){
       </tr>`;
   }).join('');
 
-  // Nota de plataforma eliminada
-  const notaPlat='';
-
   const accionesHTML=accionesSel.length
     ?`<div class="doc-sec">Acciones y Recomendaciones para la Familia</div>
       <div class="doc-acciones">
@@ -627,22 +690,22 @@ function generarAlerta(){
     <div class="doc-logo">🏫</div>
     <div class="doc-head-txt">
       <div class="doc-org">Coordinación Académica · 4.º Bachillerato · Plan Regular Escolaris 2026</div>
-      <div class="doc-titulo">${cfg.titulo} ${cfg.icon}</div>
-      <div class="doc-subtipo">Bloque ${bloqueSel} · Cierre: ${bloqueFecha}</div>
+      <div class="doc-titulo">${cfg.getTitulo(v)} ${cfg.icon}</div>
+      <div class="doc-subtipo">${subtipoDoc}</div>
     </div>
     <div class="doc-badge ${cfg.badgeClass}">${cfg.label}</div>
   </div>
 
   <div class="doc-franja ${tipoSel}">
     <span>📅 Fecha de emisión: ${fecha}</span>
-    <span>⏰ Cierre del Bloque ${bloqueSel}: ${bloqueFecha}</span>
+    <span>${bloqueEstado}</span>
   </div>
 
   <div class="doc-banner ${tipoSel}">
     <div class="dbb-icon">${cfg.bannerIcono}</div>
     <div class="dbb-txt">
-      <div class="dbb-titulo ${tipoSel}">${cfg.getBannerTitulo(cursos.length)}</div>
-      <div class="dbb-desc">${cfg.getBannerDesc(bloquePts,bloqueSel,bloqueFecha)}</div>
+      <div class="dbb-titulo ${tipoSel}">${cfg.getBannerTitulo(cursos.length,v)}</div>
+      <div class="dbb-desc">${cfg.getBannerDesc(bloquePts,bloqueSel,bloqueFecha,v)}</div>
     </div>
     <div class="dbb-badge-grande ${tipoSel}">
       ${cursos.length} ${cursos.length===1?'curso':'cursos'}<br>
@@ -659,7 +722,7 @@ function generarAlerta(){
       <div class="info-item"><div class="info-lbl">Nivel</div><div class="info-val">Bachillerato</div></div>
     </div>
 
-    <div class="doc-sec">Cursos con Alerta — Bloque ${bloqueSel} (Meta: ${bloquePts} pts.)</div>
+    <div class="doc-sec">${tablaTitulo}</div>
     <table class="doc-cursos-tabla" style="margin-bottom:16px;">
       <thead>
         <tr>
@@ -674,7 +737,7 @@ function generarAlerta(){
     </table>
 
     <div class="doc-aviso-bloque ${tipoSel}">
-      ${cfg.getAvisoBloque(bloqueSel,bloqueFecha)}
+      ${cfg.getAvisoBloque(bloqueSel,bloqueFecha,v)}
     </div>
 
     ${accionesHTML}
